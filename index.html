@@ -2,7 +2,7 @@
 <html lang="zh-CN">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
   <meta http-equiv="Pragma" content="no-cache">
   <meta http-equiv="Expires" content="0">
@@ -1785,11 +1785,11 @@ const PLAN_LABELS = { standard:'标准套餐 (24/29元)', premium:'高级套餐 
    ================================================================ */
 let currentUser = null;
 let isRegisterMode = false;
-let currentPage = 'leaderboard';
-let currentSubtab = 'myorders';
-let currentAdminTab = 'review-orders';
-let currentAdminGroup = 'review';
-let pendingReject = null;
+var currentPage = 'leaderboard';
+var currentSubtab = 'myorders';
+var currentAdminTab = 'review-orders';
+var currentAdminGroup = 'review';
+var pendingReject = null;
 const ADMIN_GROUPS = {
   review: { tabs:[
     { id:'review-orders', name:'订单审核' },
