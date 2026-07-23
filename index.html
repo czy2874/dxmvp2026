@@ -1238,7 +1238,7 @@
         </div>
         <div style="text-align:center;margin-top:8px">
           <p style="font-size:14px;color:var(--text-muted);margin-bottom:16px" id="battle-hint">随机匹配对手，当日积分增长多者获胜，赢取 20 积分</p>
-          <button class="btn-primary" id="battle-match-btn" style="font-size:16px;padding:12px 32px">&#x1F3B2; 快速匹配</button>
+          <button class="btn-primary" id="battle-match-btn" style="font-size:16px;padding:12px 32px" onclick="doQuickBattle()">&#x1F3B2; 快速匹配</button>
         </div>
       </div>
       <!-- Battle Result Toast Area -->
@@ -1263,7 +1263,7 @@
             <button class="chall-tab chall-tab-active" data-challtab="active">进行中</button>
             <button class="chall-tab" data-challtab="done">已完成</button>
           </div>
-          <button class="btn-primary" id="chall-create-btn">发起挑战</button>
+          <button class="btn-primary" id="chall-create-btn" onclick="document.getElementById('chall-modal').classList.remove('hidden');renderChallenge();">发起挑战</button>
         </div>
         <div id="chall-list" class="space-y-3"></div>
         <div id="chall-empty" class="hidden soft-card p-12 text-center">
@@ -2446,9 +2446,18 @@ function renderChallenge(){
   // Populate opponent select
   var sel = document.getElementById('chall-opponent');
   if(sel){
-    var others = profiles.filter(function(p){return p.id!==currentUser.id});
-    sel.innerHTML = '<option value="">选择对手...</option>'+others.map(function(p){return '<option value="'+p.id+'">'+escHtml(p.display_name)+' ('+p.total_points+'分)</option>'}).join('');
+    var allProfiles = DB.profiles();
+    var others = allProfiles.filter(function(p){return p.id!==currentUser.id});
+    if(others.length===0){
+      sel.innerHTML = '<option value="">暂无可挑战的对手（当前共'+allProfiles.length+'人）</option>';
+    } else {
+      sel.innerHTML = '<option value="">选择对手...</option>'+others.map(function(p){return '<option value="'+p.id+'">'+escHtml(p.display_name)+' ('+p.total_points+'分)</option>'}).join('');
+    }
   }
+
+  // Quick match fix: use DB.profiles() directly
+  var matchBtn = document.getElementById('battle-match-btn');
+  if(matchBtn && matchBtn.disabled) matchBtn.disabled = false;
 }
 
 function createChallenge(){
@@ -2632,9 +2641,9 @@ function renderBattle(){
 var _battleLock = false;
 function doQuickBattle(){
   if(_battleLock) return;
-  var profiles = DB.profiles();
-  var others = profiles.filter(function(p){return p.id!==currentUser.id});
-  if(others.length===0){ toast('没有可匹配的对手','warn'); return; }
+  var allProfiles = DB.profiles();
+  var others = allProfiles.filter(function(p){return p.id!==currentUser.id});
+  if(others.length===0){ toast('没有可匹配的对手（当前共'+allProfiles.length+'人加入）','warn'); return; }
   _battleLock = true;
   var btn = document.getElementById('battle-match-btn');
   if(btn){ btn.textContent = '匹配中...'; btn.style.opacity = '0.6'; btn.disabled = true; }
