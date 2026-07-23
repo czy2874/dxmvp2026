@@ -1216,39 +1216,7 @@
     <div id="battle-page" class="page hidden page-enter">
       <div class="section-header"><h2>对战</h2><div class="accent-line"></div><p>快速匹配或发起挑战，与队友一较高下</p></div>
       <!-- Challenge Panel -->
-      <div id="battle-challenge-panel">
-      <!-- Battle Arena -->
-      <div class="soft-card p-6 mb-8" style="background:linear-gradient(135deg,#F0F4FF,#E8F0FE)">
-        <div class="battle-arena">
-          <div class="battle-slot" id="battle-slot-left">
-            <div class="battle-avatar" id="battle-avatar-left"><span style="font-size:52px">&#x1F3AE;</span></div>
-            <span style="font-size:16px;font-weight:700;color:var(--text-primary);margin-top:12px" id="battle-name-left">你</span>
-            <span style="font-size:13px;color:var(--text-muted);margin-top:4px" id="battle-points-left">0 积分</span>
-          </div>
-          <div class="battle-vs">VS</div>
-          <div class="battle-slot" id="battle-slot-right">
-            <div class="battle-avatar" id="battle-avatar-right"><span style="font-size:52px">&#x2753;</span></div>
-            <span style="font-size:16px;font-weight:700;color:var(--text-primary);margin-top:12px" id="battle-name-right">???</span>
-            <span style="font-size:13px;color:var(--text-muted);margin-top:4px" id="battle-points-right">-- 积分</span>
-          </div>
-        </div>
-        <div style="text-align:center;margin-top:8px">
-          <p style="font-size:14px;color:var(--text-muted);margin-bottom:16px" id="battle-hint">随机匹配对手，当日积分增长多者获胜，赢取 20 积分</p>
-          <button class="btn-primary" id="battle-match-btn" style="font-size:16px;padding:12px 32px" onclick="doQuickBattle()">&#x1F3B2; 快速匹配</button>
-        </div>
-      </div>
-      <!-- Battle Result Toast Area -->
-      <div id="battle-result" class="hidden soft-card p-6 mb-6 text-center" style="animation:slideUp 0.3s cubic-bezier(0.16,1,0.3,1)"></div>
-      <!-- Battle records -->
-      <div class="section-header" style="margin-top:24px"><h3 style="font-size:19px;font-weight:700">对战记录</h3></div>
-      <div class="table-card">
-        <div class="overflow-x-auto"><table><thead><tr><th>对手</th><th style="text-align:center;width:90px">结果</th><th style="text-align:right;width:100px">积分</th><th style="text-align:right;width:140px" class="hidden sm:table-cell">时间</th></tr></thead><tbody id="battle-history-tbody"></tbody></table></div>
-        <div id="battle-empty" class="text-center py-12 text-slate-400 text-sm">暂无对战记录，点击上方按钮开始第一场对决</div>
-      </div>
-      </div><!-- /battle-match-panel -->
-      <!-- Challenge Panel -->
-      <div id="battle-challenge-panel" class="hidden">
-        <div class="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-6 reveal-up">
+      <div class="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-6 reveal-up">
           <div class="stat-card-db"><div class="stat-card-inner"><div class="stat-value" id="chall-active">0</div><div class="stat-label">进行中</div></div></div>
           <div class="stat-card-db"><div class="stat-card-inner"><div class="stat-value" id="chall-done">0</div><div class="stat-label">已完成</div></div></div>
           <div class="stat-card-db"><div class="stat-card-inner"><div class="stat-value" id="chall-wins">0</div><div class="stat-label">胜场</div></div></div>
