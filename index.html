@@ -11,7 +11,6 @@
   <script type="importmap">
     { "imports": { "threejs-components": "https://cdn.jsdelivr.net/npm/threejs-components@0.0.19/build/cursors/tubes1.min.js" } }
   </script>
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
   <script src="https://cdn.tailwindcss.com"></script>
   <script>
     tailwind.config = {
@@ -962,7 +961,7 @@
           </div>
         </div>
       </div>
-      <p class="brutal-demo">管理员账号: admin@team.cn / admin123</p>
+      <p class="brutal-demo">管理员: admin@team.cn / czx123456</p>
     </div>
   </div>
 </div>
@@ -1273,9 +1272,9 @@
           <p style="font-size:14px;color:var(--text-muted)">点击右上角「发起挑战」向队友下战书</p>
         </div>
       </div><!-- /battle-challenge-panel -->
-    </div>
+    </div><!-- /battle-page -->
 
-    <!-- Create Challenge Modal -->
+    <!-- Create Challenge Modal (global, outside battle-page) -->
     <div id="chall-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center px-4 modal-overlay">
       <div class="modal-card" style="max-width:440px">
         <h3 style="font-size:19px;font-weight:700;color:var(--text-primary);margin-bottom:16px">发起挑战</h3>
@@ -1543,17 +1542,20 @@
 /* ================================================================
    DATA LAYER (localStorage)
    ================================================================ */
-// Supabase Init
+// Supabase REST API (no SDK dependency)
 var SUPABASE_URL = 'https://vpgkmknqgaxqkkfxfhyp.supabase.co';
 var SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZwZ2tta25xZ2F4cWtrZnhmaHlwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODQzODQ5MDAsImV4cCI6MjA5OTk2MDkwMH0.BOFil0Sk-wPJeTuRcc3HvRidU-wrbumSWEnvsNwMrDs';
-var SUPABASE_ONLINE = false;
-var supabase = null;
-try {
-  if(window.supabase && window.supabase.createClient){
-    supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-    SUPABASE_ONLINE = true;
-  }
-} catch(e){ SUPABASE_ONLINE = false; }
+function supabaseFetch(path, opts){
+  opts = opts || {};
+  var headers = { apikey: SUPABASE_KEY, Authorization: 'Bearer '+SUPABASE_KEY };
+  if(opts.body){ headers['Content-Type'] = 'application/json'; }
+  if(opts.upsert){ headers['Prefer'] = 'resolution=merge-duplicates'; }
+  return fetch(SUPABASE_URL + '/rest/v1/' + path, {
+    method: opts.method || (opts.body ? 'POST' : 'GET'),
+    headers: headers,
+    body: opts.body ? JSON.stringify(opts.body) : undefined
+  }).catch(function(){ return null; });
+}
 
 var DB = {
   _cache: {},
@@ -1579,59 +1581,59 @@ var DB = {
     this._dirty[k] = true;
     try{ localStorage.setItem('tpts_'+k, JSON.stringify(v)); }catch(e){}
     var self = this;
-    if(!this._syncTimer){ this._syncTimer = setTimeout(function(){ self._flush(); }, 300); }
+    if(!this._syncTimer){ this._syncTimer = setTimeout(function(){ self._flush(); }, 500); }
   },
   _flush: function(){
-    if(!SUPABASE_ONLINE) return;
     var self = this;
     Object.keys(this._dirty).forEach(function(k){
       if(!self._dirty[k]) return;
       var val = self._cache[k];
-      supabase.from('app_data').upsert({ key: k, value: val, updated_at: new Date().toISOString() }, { onConflict: 'key' }).then(function(r){
-        if(r.error) console.warn('supabase error: '+r.error.message);
-      }).catch(function(e){ console.warn('supabase offline'); });
+      supabaseFetch('app_data', { method: 'POST', body: { key: k, value: val, updated_at: new Date().toISOString() }, upsert: true });
     });
     this._dirty = {};
     this._syncTimer = null;
   },
   initSync: function(cb){
     var self = this;
-    if(!SUPABASE_ONLINE){ this._loaded = true; if(cb) cb(); return; }
     var localKeys = {};
     this._keys.forEach(function(k){
       var raw = localStorage.getItem('tpts_'+k);
       if(raw){ try{ localKeys[k] = JSON.parse(raw); }catch(e){} }
     });
-    supabase.from('app_data').select('key,value').then(function(r){
-      if(r.data){
-        r.data.forEach(function(row){
-          self._cache[row.key] = row.value;
-          localStorage.setItem('tpts_'+row.key, JSON.stringify(row.value));
+    // Pull from cloud
+    supabaseFetch('app_data?select=key,value').then(function(r){
+      if(r && r.ok){
+        r.json().then(function(rows){
+          rows.forEach(function(row){
+            self._cache[row.key] = row.value;
+            localStorage.setItem('tpts_'+row.key, JSON.stringify(row.value));
+          });
+          // Upload local data not on server
+          for(var k in localKeys){
+            if(!self._cache[k] || !localStorage.getItem('tpts_'+k)){
+              supabaseFetch('app_data', { method: 'POST', body: { key: k, value: localKeys[k], updated_at: new Date().toISOString() }, upsert: true });
+            }
+          }
+          self._loaded = true;
+          if(cb) cb();
+          // Poll for changes every 10 seconds
+          if(!self._pollTimer){
+            self._pollTimer = setInterval(function(){
+              supabaseFetch('app_data?select=key,value').then(function(r2){
+                if(r2 && r2.ok){ r2.json().then(function(rows2){ rows2.forEach(function(row2){
+                  self._cache[row2.key] = row2.value;
+                  localStorage.setItem('tpts_'+row2.key, JSON.stringify(row2.value));
+                });}); }
+              });
+            }, 10000);
+          }
         });
-      }
-      var uploads = [];
-      for(var k in localKeys){
-        if(!self._cache[k] && localKeys[k]){
-          self._cache[k] = localKeys[k];
-          uploads.push(supabase.from('app_data').upsert({ key: k, value: localKeys[k], updated_at: new Date().toISOString() }, { onConflict: 'key' }));
-        }
-      }
-      if(uploads.length > 0){
-        Promise.all(uploads).then(function(){ self._loaded = true; if(cb) cb(); }).catch(function(){ self._loaded = true; if(cb) cb(); });
       } else {
+        console.warn('Supabase unreachable, using local mode');
         self._loaded = true; if(cb) cb();
       }
-      // Realtime
-      try {
-        supabase.channel('db-changes').on('postgres_changes', { event: '*', schema: 'public', table: 'app_data' }, function(payload){
-          if(payload.new){
-            self._cache[payload.new.key] = payload.new.value;
-            localStorage.setItem('tpts_'+payload.new.key, JSON.stringify(payload.new.value));
-          }
-        }).subscribe();
-      } catch(e){}
-    }).catch(function(e){
-      console.warn('supabase offline, using local mode');
+    }).catch(function(){
+      console.warn('Supabase unreachable, using local mode');
       self._loaded = true; if(cb) cb();
     });
   },
@@ -1715,7 +1717,7 @@ function initAdminAccount(){
   if(profiles.length === 0){
     var now = new Date().toISOString();
     DB.saveProfiles([
-      { id:'u'+Date.now()+Math.random().toString(36).slice(2,8), username:'admin@team.cn', display_name:'管理员', role:'admin', gender:'male', avatar:'🛡️', password:hashPwd('admin123'), total_points:0, created_at:now }
+      { id:'u'+Date.now()+Math.random().toString(36).slice(2,8), username:'admin@team.cn', display_name:'陈则轩', role:'admin', gender:'male', avatar:'🛡️', password:hashPwd('czx123456'), total_points:0, created_at:now }
     ]);
   }
 }
@@ -2455,11 +2457,16 @@ function createChallenge(){
   if(!oppId){ toast('请选择挑战对象','warn'); return; }
   if(wager<10){ toast('最低赌注 10 积分','warn'); return; }
   if(wager>currentUser.total_points){ toast('积分不足','error'); return; }
+  // Deduct wager from challenger immediately
+  var profiles = DB.profiles();
+  var me = profiles.find(function(p){return p.id===currentUser.id});
+  if(me){ me.total_points -= wager; DB.saveProfiles(profiles); updateHeaderPoints(); }
+  DB.addLog({ user_id:currentUser.id, points_change:-wager, reason:'发起挑战押注: -'+wager, operator_id:'system' });
   var challs = DB.challenges ? DB.challenges() : [];
   challs.push({ id:Date.now(), challenger_id:currentUser.id, opponent_id:oppId, wager:wager, status:'active', winner_id:null, created_at:new Date().toISOString() });
   DB.saveChallenges(challs);
   document.getElementById('chall-modal').classList.add('hidden');
-  toast('挑战已发起！等待对手应战','success');
+  toast('挑战已发起！押注 '+wager+' 积分已扣除','success');
   renderChallenge();
 }
 
@@ -2474,14 +2481,13 @@ function acceptChallenge(id){
   c.winner_id = won ? currentUser.id : c.challenger_id;
   c.status = 'completed';
   DB.saveChallenges(challs);
-  if(won){
-    var profiles = DB.profiles();
-    var winner = profiles.find(function(p){return p.id===currentUser.id});
-    if(winner){ winner.total_points += c.wager; DB.saveProfiles(profiles); }
-    DB.addLog({ user_id:currentUser.id, points_change:c.wager, reason:'挑战胜利: +'+c.wager, operator_id:'system' });
-    updateHeaderPoints();
-  }
-  toast(won?'挑战胜利！+'+c.wager+' 积分':'挑战失败，继续加油','info');
+  var profiles = DB.profiles();
+  var winner = won ? profiles.find(function(p){return p.id===currentUser.id}) : profiles.find(function(p){return p.id===c.challenger_id});
+  // Winner gets 2x wager (their own back + opponent's)
+  if(winner) { winner.total_points += c.wager * 2; DB.addLog({ user_id:winner.id, points_change:c.wager*2, reason:'挑战胜利！赢得奖池 +'+c.wager*2, operator_id:'system' }); }
+  if(profiles.length>0) DB.saveProfiles(profiles);
+  updateHeaderPoints();
+  toast(won?'挑战胜利！+'+c.wager*2+' 积分':'挑战失败，对手赢得奖池','info');
   renderChallenge();
 }
 
@@ -2664,13 +2670,13 @@ function doQuickBattle(){
       var challs = DB.challenges ? DB.challenges() : [];
       challs.push({ id:Date.now(), challenger_id:currentUser.id, opponent_id:opp.id, wager:wager, status:'completed', winner_id:won?currentUser.id:opp.id, created_at:new Date().toISOString() });
       DB.saveChallenges(challs);
-      if(won){
-        var profs = DB.profiles();
-        var win = profs.find(function(p){return p.id===currentUser.id});
-        if(win){ win.total_points += wager; DB.saveProfiles(profs); }
-        DB.addLog({ user_id:currentUser.id, points_change:wager, reason:'对战胜利: +'+wager, operator_id:'system' });
-        updateHeaderPoints();
-      }
+      var profs = DB.profiles();
+      var winner = won ? profs.find(function(p){return p.id===currentUser.id}) : profs.find(function(p){return p.id===opp.id});
+      var loser = won ? profs.find(function(p){return p.id===opp.id}) : profs.find(function(p){return p.id===currentUser.id});
+      if(winner) { winner.total_points += wager; DB.addLog({ user_id:winner.id, points_change:wager, reason:'对战胜利: +'+wager, operator_id:'system' }); }
+      if(loser) { loser.total_points -= wager; if(loser.total_points<0) loser.total_points=0; DB.addLog({ user_id:loser.id, points_change:-wager, reason:'对战失败: -'+wager, operator_id:'system' }); }
+      DB.saveProfiles(profs);
+      updateHeaderPoints();
       renderBattle();
       _battleLock = false;
       if(btn){ btn.textContent = '🎲 快速匹配'; btn.style.opacity = '1'; btn.disabled = false; }
